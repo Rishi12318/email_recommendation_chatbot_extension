@@ -34,18 +34,18 @@
         </div>
 
         <div id="chat-area">
-            <div id="gmail-section" class="gmail-bar">
-                <button id="connect-gmail-btn" class="gmail-btn">Connect Gmail</button>
-                <button id="scan-btn" class="gmail-btn" style="display:none">Scan Inbox</button>
+            <div class="gmail-bar">
+                <button id="open-gmail-btn" class="gmail-btn">Open Gmail</button>
+                <button id="scan-btn" class="gmail-btn scan-btn">Scan Inbox</button>
                 <span id="email-count" class="email-count"></span>
             </div>
 
             <div class="chat-box" id="chat-box">
-                <div class="msg bot-msg">Try: "Show me emails from Amazon"</div>
+                <div class="msg bot-msg">Open Gmail, then click Scan Inbox to fetch your emails</div>
             </div>
 
             <div class="input-area">
-                <input type="text" id="user-input" class="user-input" placeholder="Type your message..." autofocus>
+                <input type="text" id="user-input" class="user-input" placeholder="Ask about your emails..." autofocus>
                 <button id="send-btn" class="send-btn">Send</button>
             </div>
 
@@ -55,7 +55,6 @@
             </div>
         </div>
     </div>
-
     <script src="popup.js"></script>
 </body>
 </html>

@@ -9,13 +9,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const settingsBtn = document.getElementById('settings-btn');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     const setupSection = document.getElementById('setup-section');
-    const connectGmailBtn = document.getElementById('connect-gmail-btn');
     const scanBtn = document.getElementById('scan-btn');
     const emailCount = document.getElementById('email-count');
+    const openGmailBtn = document.getElementById('open-gmail-btn');
 
     loadSettings();
     checkConnection();
-    checkGmailStatus();
+    updateEmailCount();
 
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keypress', function(e) {
@@ -23,8 +23,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     settingsBtn.addEventListener('click', toggleSettings);
     saveSettingsBtn.addEventListener('click', saveSettings);
-    connectGmailBtn.addEventListener('click', connectGmail);
     scanBtn.addEventListener('click', scanInbox);
+    openGmailBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'https://mail.google.com' });
+    });
 
     function loadSettings() {
         chrome.storage.local.get(['userName'], function(result) {
@@ -44,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const email = document.getElementById('user-email').value.trim();
         const profession = document.getElementById('user-profession').value;
         if (!name || !email || !profession) {
-            alert('Please fill in all fields and select your profession.');
+            alert('Please fill in all fields.');
             return;
         }
         chrome.storage.local.set({ userName: name, userEmail: email, userProfession: profession }, function() {
@@ -72,63 +74,48 @@ document.addEventListener('DOMContentLoaded', function() {
         userInput.focus();
     }
 
-    async function checkGmailStatus() {
-        try {
-            const r = await fetch(API_BASE + '/api/gmail/status');
-            const data = await r.json();
-            if (data.connected) {
-                connectGmailBtn.textContent = 'Gmail Connected';
-                connectGmailBtn.style.background = '#34a853';
-                scanBtn.style.display = 'inline-block';
-                updateEmailCount();
-            }
-        } catch (e) {}
-    }
-
-    function connectGmail() {
-        window.open(API_BASE + '/api/gmail/auth', 'gmail_auth', 'width=600,height=700');
-        const checkInterval = setInterval(async () => {
-            const r = await fetch(API_BASE + '/api/gmail/status');
-            const data = await r.json();
-            if (data.connected) {
-                clearInterval(checkInterval);
-                connectGmailBtn.textContent = 'Gmail Connected';
-                connectGmailBtn.style.background = '#34a853';
-                scanBtn.style.display = 'inline-block';
-                addMessage('Gmail connected! Click "Scan Inbox" to fetch your emails.', 'bot');
-                updateEmailCount();
-            }
-        }, 2000);
-    }
-
-    async function scanInbox() {
+    function scanInbox() {
         scanBtn.disabled = true;
         scanBtn.textContent = 'Scanning...';
-        addMessage('Scanning your Gmail inbox...', 'bot');
-        try {
-            const r = await fetch(API_BASE + '/api/gmail/scan', { method: 'POST' });
-            const data = await r.json();
-            if (data.error) {
-                addMessage('Error: ' + data.error, 'bot');
-            } else {
-                addMessage(`Found ${data.total} emails in your inbox. Indexing them now...`, 'bot');
-                const r2 = await fetch(API_BASE + '/api/gmail/index', { method: 'POST' });
-                const idx = await r2.json();
-                addMessage(`Indexed ${idx.indexed} new emails (${idx.total_emails} total). You can now ask me about your emails!`, 'bot');
-                updateEmailCount();
+        addMessage('Scanning Gmail...', 'bot');
+
+        chrome.runtime.sendMessage({ action: 'scanInbox' }, async (response) => {
+            scanBtn.disabled = false;
+            scanBtn.textContent = 'Scan Inbox';
+
+            if (!response || response.error) {
+                addMessage('Open Gmail first (mail.google.com) then try again.', 'bot');
+                return;
             }
-        } catch (e) {
-            addMessage('Error scanning inbox. Is the server running?', 'bot');
-        }
-        scanBtn.disabled = false;
-        scanBtn.textContent = 'Scan Inbox';
+
+            const emails = response.emails || [];
+            if (emails.length === 0) {
+                addMessage('No emails found in your inbox view. Make sure you are on the inbox page.', 'bot');
+                return;
+            }
+
+            addMessage(`Found ${emails.length} emails. Indexing...`, 'bot');
+
+            try {
+                const r = await fetch(API_BASE + '/api/emails/ingest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails })
+                });
+                const data = await r.json();
+                addMessage(`Indexed ${data.indexed} emails. Ask me anything about your inbox!`, 'bot');
+                updateEmailCount();
+            } catch (e) {
+                addMessage('Indexed locally. Ask me about your emails!', 'bot');
+            }
+        });
     }
 
     async function updateEmailCount() {
         try {
             const r = await fetch(API_BASE + '/api/gmail/emails');
             const data = await r.json();
-            emailCount.textContent = `${data.total} emails indexed`;
+            if (data.total) emailCount.textContent = `${data.total} emails`;
         } catch (e) {}
     }
 

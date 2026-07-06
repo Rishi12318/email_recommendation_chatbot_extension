@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import List
+from pydantic import Field
 import uvicorn
 from app.services.agent_rag import EmailAgentWithRAG
 from app.services.gmail_auth import get_auth_url, exchange_code
@@ -30,6 +31,16 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[Message]
+
+class ScrapedEmail(BaseModel):
+    sender: str = ""
+    subject: str = ""
+    snippet: str = ""
+    date: str = ""
+    body: str = ""
+
+class IngestRequest(BaseModel):
+    emails: List[ScrapedEmail]
 
 class ChatResponse(BaseModel):
     reply: str
@@ -137,12 +148,35 @@ async def gmail_index():
 
 @app.get("/api/gmail/emails")
 async def list_emails():
-    count = 0
-    results = []
     rag = get_rag()
-    for i, email in enumerate(rag.emails[-50:]):
-        results.append({"id": i, "preview": email[:200]})
-    return {"total": len(rag.emails), "recent": results}
+    return {"total": len(rag.emails), "recent": [e[:200] for e in rag.emails[-50:]]}
+
+
+@app.post("/api/emails/ingest")
+async def ingest_emails(request: IngestRequest):
+    if not request.emails:
+        raise HTTPException(status_code=400, detail="No emails provided")
+    rag = get_rag()
+    new_count = 0
+    for email in request.emails:
+        text = f"From: {email.sender}\nSubject: {email.subject}\nDate: {email.date or ''}\n\n{email.snippet or email.body or ''}"
+        if text not in rag.emails:
+            rag.emails.append(text)
+            new_count += 1
+    if new_count > 0:
+        import faiss, numpy as np
+        from sentence_transformers import SentenceTransformer
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        new_texts = rag.emails[-new_count:]
+        vecs = embedder.encode(new_texts, convert_to_numpy=True)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        vecs = (vecs / norms).astype("float32")
+        rag.index.add(vecs)
+        with open("models/emails.json", "w", encoding="utf-8") as f:
+            json.dump(rag.emails, f, ensure_ascii=False, indent=2)
+        faiss.write_index(rag.index, "models/email_index.faiss")
+    return {"indexed": new_count, "total": len(rag.emails)}
 
 
 if __name__ == "__main__":
