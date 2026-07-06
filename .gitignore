@@ -13,3 +13,4 @@ wheels/
 .env
 server_out.txt
 server_err.txt
+models/email_classifier/

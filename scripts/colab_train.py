@@ -112,7 +112,7 @@ def main():
         num_train_epochs=3,
         per_device_train_batch_size=32,
         per_device_eval_batch_size=64,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         logging_steps=50,
         learning_rate=2e-5,
