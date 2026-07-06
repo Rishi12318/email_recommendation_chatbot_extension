@@ -1,5 +1,3 @@
-const API_BASE = 'http://localhost:8000';
-
 document.addEventListener('DOMContentLoaded', function() {
     const chatBox = document.getElementById('chat-box');
     const chatArea = document.getElementById('chat-area');
@@ -17,7 +15,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const userEmailInput = document.getElementById('user-email');
     const professionSelect = document.getElementById('user-profession');
 
-    checkConnection();
+    let API_BASE;
+
+    chrome.storage.local.get(['apiBase'], function(r) {
+        API_BASE = r.apiBase || 'http://localhost:8000';
+        checkConnection();
+        updateEmailCount();
+    });
 
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keypress', function(e) {
