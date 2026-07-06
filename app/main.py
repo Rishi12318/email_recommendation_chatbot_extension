@@ -19,7 +19,11 @@ rag = None
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "chrome-extension://*"],
+    allow_origins=[
+        "http://localhost:8000",
+        "chrome-extension://*",
+        os.getenv("RENDER_EXTERNAL_URL", ""),
+    ],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
