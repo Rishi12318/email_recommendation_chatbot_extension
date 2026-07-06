@@ -1,17 +1,16 @@
-// popup.js
 const API_URL = 'http://localhost:8000/api/chat';
 
 document.addEventListener('DOMContentLoaded', function() {
     const chatBox = document.getElementById('chat-box');
+    const chatArea = document.getElementById('chat-area');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const statusEl = document.getElementById('status');
     const settingsBtn = document.getElementById('settings-btn');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
+    const setupSection = document.getElementById('setup-section');
 
-    // Load saved settings
     loadSettings();
-
     checkConnection();
 
     sendBtn.addEventListener('click', sendMessage);
@@ -22,20 +21,15 @@ document.addEventListener('DOMContentLoaded', function() {
     settingsBtn.addEventListener('click', toggleSettings);
     saveSettingsBtn.addEventListener('click', saveSettings);
 
-    // ============================================================
-    // SETTINGS FUNCTIONS
-    // ============================================================
-
     function loadSettings() {
         chrome.storage.local.get(['userName', 'userEmail', 'userProfession'], function(result) {
             if (result.userName) {
                 document.getElementById('user-name').value = result.userName;
-            }
-            if (result.userEmail) {
                 document.getElementById('user-email').value = result.userEmail;
-            }
-            if (result.userProfession) {
                 document.getElementById('user-profession').value = result.userProfession;
+                showChat();
+            } else {
+                showSetup();
             }
         });
     }
@@ -55,45 +49,38 @@ document.addEventListener('DOMContentLoaded', function() {
             userEmail: email,
             userProfession: profession
         }, function() {
-            alert('Settings saved!');
-            // Send profession to backend
+            setupSection.classList.remove('visible');
+            showChat();
             sendUserProfile(name, email, profession);
         });
     }
 
     async function sendUserProfile(name, email, profession) {
         try {
-            const response = await fetch('http://localhost:8000/api/user/profile', {
+            await fetch('http://localhost:8000/api/user/profile', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${await getToken()}`
-                },
-                body: JSON.stringify({
-                    name: name,
-                    email: email,
-                    profession: profession
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, profession })
             });
-            const data = await response.json();
-            console.log('Profile saved:', data);
         } catch (error) {
             console.error('Failed to save profile:', error);
         }
     }
 
     function toggleSettings() {
-        const settingsSection = document.getElementById('settings-section');
-        if (settingsSection.style.display === 'none') {
-            settingsSection.style.display = 'block';
-        } else {
-            settingsSection.style.display = 'none';
-        }
+        setupSection.classList.toggle('visible');
     }
 
-    // ============================================================
-    // CHAT FUNCTIONS
-    // ============================================================
+    function showSetup() {
+        setupSection.style.display = 'block';
+        chatArea.style.display = 'none';
+    }
+
+    function showChat() {
+        setupSection.style.display = 'none';
+        chatArea.style.display = 'flex';
+        userInput.focus();
+    }
 
     function addMessage(text, sender) {
         const msgDiv = document.createElement('div');
@@ -147,14 +134,14 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('http://localhost:8000/health');
             if (response.ok) {
-                statusEl.textContent = '● Connected';
+                statusEl.textContent = 'Connected';
                 statusEl.style.color = '#34a853';
             } else {
-                statusEl.textContent = '● Disconnected';
+                statusEl.textContent = 'Disconnected';
                 statusEl.style.color = '#ea4335';
             }
         } catch {
-            statusEl.textContent = '● Disconnected';
+            statusEl.textContent = 'Disconnected';
             statusEl.style.color = '#ea4335';
         }
     }

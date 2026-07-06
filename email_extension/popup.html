@@ -8,16 +8,12 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>Email Assistant</h1>
-            <span class="status" id="status">● Connected</span>
+            <span class="status" id="status">Connected</span>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  USER SETTINGS (Added here for profession selection)           -->
-        <!-- ============================================================ -->
-        <div class="settings-section" id="settings-section">
+        <div id="setup-section" class="settings-section visible">
             <div class="settings-row">
                 <label for="user-name">Name</label>
                 <input type="text" id="user-name" placeholder="Your name">
@@ -34,25 +30,24 @@
                     <option value="working">Working Professional</option>
                 </select>
             </div>
-            <button id="save-settings-btn">Save Settings</button>
+            <button id="save-settings-btn">Get Started</button>
         </div>
 
-        <!-- Chat Box -->
-        <div class="chat-box" id="chat-box">
-            <div class="msg bot-msg">Try: "Show me emails from Amazon"</div>
-        </div>
+        <div id="chat-area" style="display: none; flex-direction: column; flex: 1;">
+            <div class="chat-box" id="chat-box">
+                <div class="msg bot-msg">Try: "Show me emails from Amazon"</div>
+            </div>
 
-        <!-- Input Area -->
-        <div class="input-area">
-            <input type="text" id="user-input" class="user-input" placeholder="Type your message..." autofocus>
-            <button id="send-btn" class="send-btn">Send</button>
-        </div>
+            <div class="input-area">
+                <input type="text" id="user-input" class="user-input" placeholder="Type your message..." autofocus>
+                <button id="send-btn" class="send-btn">Send</button>
+            </div>
 
-        <!-- Quick Actions -->
-        <div class="actions">
-            <button class="action-btn" id="scan-btn">Scan Inbox</button>
-            <button class="action-btn" id="summarize-btn">Summarize</button>
-            <button class="action-btn" id="settings-btn">⚙️</button>
+            <div class="actions">
+                <button class="action-btn" id="scan-btn">Scan Inbox</button>
+                <button class="action-btn" id="summarize-btn">Summarize</button>
+                <button class="action-btn" id="settings-btn">Settings</button>
+            </div>
         </div>
     </div>
 
