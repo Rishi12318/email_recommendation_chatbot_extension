@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Email Assistant</h1>
+            <span class="status" id="status">● Connected</span>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  USER SETTINGS (Added here for profession selection)           -->
+        <!-- ============================================================ -->
+        <div class="settings-section" id="settings-section">
+            <div class="settings-row">
+                <label for="user-name">Name</label>
+                <input type="text" id="user-name" placeholder="Your name">
+            </div>
+            <div class="settings-row">
+                <label for="user-email">Email</label>
+                <input type="email" id="user-email" placeholder="your@email.com">
+            </div>
+            <div class="settings-row">
+                <label for="user-profession">Profession</label>
+                <select id="user-profession">
+                    <option value="">-- Select --</option>
+                    <option value="student">Student</option>
+                    <option value="working">Working Professional</option>
+                </select>
+            </div>
+            <button id="save-settings-btn">Save Settings</button>
+        </div>
+
+        <!-- Chat Box -->
+        <div class="chat-box" id="chat-box">
+            <div class="msg bot-msg">Try: "Show me emails from Amazon"</div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <input type="text" id="user-input" class="user-input" placeholder="Type your message..." autofocus>
+            <button id="send-btn" class="send-btn">Send</button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="actions">
+            <button class="action-btn" id="scan-btn">Scan Inbox</button>
+            <button class="action-btn" id="summarize-btn">Summarize</button>
+            <button class="action-btn" id="settings-btn">⚙️</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
