@@ -7,33 +7,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.getElementById('send-btn');
     const statusEl = document.getElementById('status');
     const settingsBtn = document.getElementById('settings-btn');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
     const setupSection = document.getElementById('setup-section');
     const scanBtn = document.getElementById('scan-btn');
     const emailCount = document.getElementById('email-count');
     const openGmailBtn = document.getElementById('open-gmail-btn');
+    const googleSignInBtn = document.getElementById('google-signin-btn');
+    const userNameInput = document.getElementById('user-name');
+    const userEmailInput = document.getElementById('user-email');
+    const professionSelect = document.getElementById('user-profession');
 
-    loadSettings();
     checkConnection();
-    updateEmailCount();
 
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') sendMessage();
     });
     settingsBtn.addEventListener('click', toggleSettings);
-    saveSettingsBtn.addEventListener('click', saveSettings);
     scanBtn.addEventListener('click', scanInbox);
     openGmailBtn.addEventListener('click', () => {
         chrome.tabs.create({ url: 'https://mail.google.com' });
     });
 
+    document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+
+    if (googleSignInBtn) {
+        googleSignInBtn.addEventListener('click', signInWithGoogle);
+    }
+
+    loadSettings();
+
     function loadSettings() {
-        chrome.storage.local.get(['userName'], function(result) {
-            if (result.userName) {
-                document.getElementById('user-name').value = result.userName;
-                document.getElementById('user-email').value = result.userEmail || '';
-                document.getElementById('user-profession').value = result.userProfession || '';
+        chrome.storage.local.get(['userName', 'userEmail', 'userProfession', 'signedIn'], function(result) {
+            if (result.signedIn) {
+                userNameInput.value = result.userName || '';
+                userEmailInput.value = result.userEmail || '';
+                professionSelect.value = result.userProfession || '';
                 showChat();
             } else {
                 showSetup();
@@ -41,21 +49,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function signInWithGoogle() {
+        chrome.identity.getProfileUserInfo({ 'accountStatus': 'ANY' }, function(userInfo) {
+            if (chrome.runtime.lastError) {
+                addMessage('Could not sign in: ' + chrome.runtime.lastError.message, 'bot');
+                return;
+            }
+            if (userInfo.email) {
+                userNameInput.value = userInfo.name || userInfo.email.split('@')[0];
+                userEmailInput.value = userInfo.email;
+                addMessage('Signed in as ' + userInfo.email, 'bot');
+            } else {
+                addMessage('Please make sure you are signed into Chrome with your Google account.', 'bot');
+            }
+        });
+    }
+
     function saveSettings() {
-        const name = document.getElementById('user-name').value.trim();
-        const email = document.getElementById('user-email').value.trim();
-        const profession = document.getElementById('user-profession').value;
+        const name = userNameInput.value.trim();
+        const email = userEmailInput.value.trim();
+        const profession = professionSelect.value;
         if (!name || !email || !profession) {
-            alert('Please fill in all fields.');
+            alert('Please fill in all fields or sign in with Google.');
             return;
         }
-        chrome.storage.local.set({ userName: name, userEmail: email, userProfession: profession }, function() {
+        chrome.storage.local.set({
+            userName: name, userEmail: email, userProfession: profession, signedIn: true
+        }, function() {
             setupSection.classList.remove('visible');
             showChat();
-            fetch(API_BASE + '/api/user/profile', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, profession })
-            }).catch(() => {});
         });
     }
 
@@ -72,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupSection.style.display = 'none';
         chatArea.style.display = 'flex';
         userInput.focus();
+        updateEmailCount();
     }
 
     function scanInbox() {
@@ -82,28 +105,23 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.runtime.sendMessage({ action: 'scanInbox' }, async (response) => {
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan Inbox';
-
             if (!response || response.error) {
                 addMessage('Open Gmail first (mail.google.com) then try again.', 'bot');
                 return;
             }
-
             const emails = response.emails || [];
             if (emails.length === 0) {
-                addMessage('No emails found in your inbox view. Make sure you are on the inbox page.', 'bot');
+                addMessage('No emails found. Make sure you are on the inbox page.', 'bot');
                 return;
             }
-
-            addMessage(`Found ${emails.length} emails. Indexing...`, 'bot');
-
+            addMessage('Found ' + emails.length + ' emails. Indexing...', 'bot');
             try {
                 const r = await fetch(API_BASE + '/api/emails/ingest', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ emails })
                 });
                 const data = await r.json();
-                addMessage(`Indexed ${data.indexed} emails. Ask me anything about your inbox!`, 'bot');
+                addMessage('Indexed ' + data.indexed + ' emails. Ask me anything!', 'bot');
                 updateEmailCount();
             } catch (e) {
                 addMessage('Indexed locally. Ask me about your emails!', 'bot');
@@ -115,13 +133,13 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const r = await fetch(API_BASE + '/api/gmail/emails');
             const data = await r.json();
-            if (data.total) emailCount.textContent = `${data.total} emails`;
+            if (data.total) emailCount.textContent = data.total + ' emails';
         } catch (e) {}
     }
 
     function addMessage(text, sender) {
         const msgDiv = document.createElement('div');
-        msgDiv.className = `msg ${sender === 'user' ? 'user-msg' : 'bot-msg'}`;
+        msgDiv.className = 'msg ' + (sender === 'user' ? 'user-msg' : 'bot-msg');
         msgDiv.textContent = text;
         chatBox.appendChild(msgDiv);
         chatBox.scrollTop = chatBox.scrollHeight;

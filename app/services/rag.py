@@ -59,9 +59,11 @@ class EmailRAG:
 
         # ── Groq LLM client ───────────────────────────────────────────────
         groq_key = os.getenv("GROQ_API_KEY")
-        if not groq_key:
-            print("⚠️  GROQ_API_KEY not found in .env — LLM calls will fail")
-        self.llm = Groq(api_key=groq_key)
+        if groq_key:
+            self.llm = Groq(api_key=groq_key)
+        else:
+            print("[INFO] No GROQ_API_KEY set - using local template responses")
+            self.llm = None
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
