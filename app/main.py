@@ -1,13 +1,20 @@
-# app/main.py (API Only)
+# app/main.py
+import os
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import List
 import uvicorn
 from app.services.agent_rag import EmailAgentWithRAG
+from app.services.gmail_auth import get_auth_url, exchange_code
+from app.services.gmail_service import fetch_recent_emails, save_token
+from app.services.rag import EmailRAG
 
 app = FastAPI()
 agent = None
+rag = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,27 +43,107 @@ def get_agent() -> EmailAgentWithRAG:
         agent = EmailAgentWithRAG()
     return agent
 
+def get_rag() -> EmailRAG:
+    global rag
+    if rag is None:
+        rag = EmailRAG()
+    return rag
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     if not request.messages:
         raise HTTPException(status_code=400, detail="No messages provided")
-
     user_message = request.messages[-1].content
-
     try:
         result = get_agent().process_query(user_message)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Chat pipeline failed: {exc}")
-
     return ChatResponse(
         reply=result.get("reply", "No response generated"),
         recommendations=result.get("recommendations", []),
         end_of_conversation=False,
     )
+
+
+@app.get("/api/gmail/auth")
+async def gmail_auth():
+    try:
+        auth_url = get_auth_url()
+        return RedirectResponse(auth_url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OAuth setup failed: {e}")
+
+
+@app.get("/api/gmail/callback")
+async def gmail_callback(code: str):
+    try:
+        creds = exchange_code(code)
+        save_token(creds)
+        return HTMLResponse("<h2>Gmail Connected! You can close this tab.</h2><script>window.close()</script>")
+    except Exception as e:
+        return HTMLResponse(f"<h2>Auth failed: {e}</h2>")
+
+
+@app.get("/api/gmail/status")
+async def gmail_status():
+    token_file = "gmail_token.json"
+    return {"connected": os.path.exists(token_file)}
+
+
+@app.post("/api/gmail/scan")
+async def gmail_scan():
+    result = fetch_recent_emails(max_results=50)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/gmail/index")
+async def gmail_index():
+    result = fetch_recent_emails(max_results=50)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    emails = result.get("emails", [])
+    if not emails:
+        return {"indexed": 0}
+    rag = get_rag()
+    new_count = 0
+    for email in emails:
+        text = f"From: {email['from']}\nSubject: {email['subject']}\nDate: {email['date']}\n\n{email['body']}"
+        if text not in rag.emails:
+            rag.emails.append(text)
+            new_count += 1
+    with open("models/emails.json", "w", encoding="utf-8") as f:
+        json.dump(rag.emails, f, ensure_ascii=False, indent=2)
+    import faiss, numpy as np
+    from sentence_transformers import SentenceTransformer
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    if new_count > 0:
+        new_texts = [e for e in emails]
+        new_vecs = embedder.encode([f"From: {e['from']}\nSubject: {e['subject']}\nDate: {e['date']}\n\n{e['body']}" for e in emails], convert_to_numpy=True)
+        norms = np.linalg.norm(new_vecs, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        new_vecs = (new_vecs / norms).astype("float32")
+        rag.index.add(new_vecs)
+        faiss.write_index(rag.index, "models/email_index.faiss")
+    return {"indexed": new_count, "total_emails": len(rag.emails)}
+
+
+@app.get("/api/gmail/emails")
+async def list_emails():
+    count = 0
+    results = []
+    rag = get_rag()
+    for i, email in enumerate(rag.emails[-50:]):
+        results.append({"id": i, "preview": email[:200]})
+    return {"total": len(rag.emails), "recent": results}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -33,7 +33,13 @@
             <button id="save-settings-btn">Get Started</button>
         </div>
 
-        <div id="chat-area" style="display: none; flex-direction: column; flex: 1;">
+        <div id="chat-area">
+            <div id="gmail-section" class="gmail-bar">
+                <button id="connect-gmail-btn" class="gmail-btn">Connect Gmail</button>
+                <button id="scan-btn" class="gmail-btn" style="display:none">Scan Inbox</button>
+                <span id="email-count" class="email-count"></span>
+            </div>
+
             <div class="chat-box" id="chat-box">
                 <div class="msg bot-msg">Try: "Show me emails from Amazon"</div>
             </div>
@@ -44,7 +50,6 @@
             </div>
 
             <div class="actions">
-                <button class="action-btn" id="scan-btn">Scan Inbox</button>
                 <button class="action-btn" id="summarize-btn">Summarize</button>
                 <button class="action-btn" id="settings-btn">Settings</button>
             </div>

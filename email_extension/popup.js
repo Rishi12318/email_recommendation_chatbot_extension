@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8000/api/chat';
+const API_BASE = 'http://localhost:8000';
 
 document.addEventListener('DOMContentLoaded', function() {
     const chatBox = document.getElementById('chat-box');
@@ -9,24 +9,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const settingsBtn = document.getElementById('settings-btn');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     const setupSection = document.getElementById('setup-section');
+    const connectGmailBtn = document.getElementById('connect-gmail-btn');
+    const scanBtn = document.getElementById('scan-btn');
+    const emailCount = document.getElementById('email-count');
 
     loadSettings();
     checkConnection();
+    checkGmailStatus();
 
     sendBtn.addEventListener('click', sendMessage);
     userInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') sendMessage();
     });
-
     settingsBtn.addEventListener('click', toggleSettings);
     saveSettingsBtn.addEventListener('click', saveSettings);
+    connectGmailBtn.addEventListener('click', connectGmail);
+    scanBtn.addEventListener('click', scanInbox);
 
     function loadSettings() {
-        chrome.storage.local.get(['userName', 'userEmail', 'userProfession'], function(result) {
+        chrome.storage.local.get(['userName'], function(result) {
             if (result.userName) {
                 document.getElementById('user-name').value = result.userName;
-                document.getElementById('user-email').value = result.userEmail;
-                document.getElementById('user-profession').value = result.userProfession;
+                document.getElementById('user-email').value = result.userEmail || '';
+                document.getElementById('user-profession').value = result.userProfession || '';
                 showChat();
             } else {
                 showSetup();
@@ -38,33 +43,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = document.getElementById('user-name').value.trim();
         const email = document.getElementById('user-email').value.trim();
         const profession = document.getElementById('user-profession').value;
-
         if (!name || !email || !profession) {
             alert('Please fill in all fields and select your profession.');
             return;
         }
-
-        chrome.storage.local.set({
-            userName: name,
-            userEmail: email,
-            userProfession: profession
-        }, function() {
+        chrome.storage.local.set({ userName: name, userEmail: email, userProfession: profession }, function() {
             setupSection.classList.remove('visible');
             showChat();
-            sendUserProfile(name, email, profession);
-        });
-    }
-
-    async function sendUserProfile(name, email, profession) {
-        try {
-            await fetch('http://localhost:8000/api/user/profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            fetch(API_BASE + '/api/user/profile', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, profession })
-            });
-        } catch (error) {
-            console.error('Failed to save profile:', error);
-        }
+            }).catch(() => {});
+        });
     }
 
     function toggleSettings() {
@@ -80,6 +70,66 @@ document.addEventListener('DOMContentLoaded', function() {
         setupSection.style.display = 'none';
         chatArea.style.display = 'flex';
         userInput.focus();
+    }
+
+    async function checkGmailStatus() {
+        try {
+            const r = await fetch(API_BASE + '/api/gmail/status');
+            const data = await r.json();
+            if (data.connected) {
+                connectGmailBtn.textContent = 'Gmail Connected';
+                connectGmailBtn.style.background = '#34a853';
+                scanBtn.style.display = 'inline-block';
+                updateEmailCount();
+            }
+        } catch (e) {}
+    }
+
+    function connectGmail() {
+        window.open(API_BASE + '/api/gmail/auth', 'gmail_auth', 'width=600,height=700');
+        const checkInterval = setInterval(async () => {
+            const r = await fetch(API_BASE + '/api/gmail/status');
+            const data = await r.json();
+            if (data.connected) {
+                clearInterval(checkInterval);
+                connectGmailBtn.textContent = 'Gmail Connected';
+                connectGmailBtn.style.background = '#34a853';
+                scanBtn.style.display = 'inline-block';
+                addMessage('Gmail connected! Click "Scan Inbox" to fetch your emails.', 'bot');
+                updateEmailCount();
+            }
+        }, 2000);
+    }
+
+    async function scanInbox() {
+        scanBtn.disabled = true;
+        scanBtn.textContent = 'Scanning...';
+        addMessage('Scanning your Gmail inbox...', 'bot');
+        try {
+            const r = await fetch(API_BASE + '/api/gmail/scan', { method: 'POST' });
+            const data = await r.json();
+            if (data.error) {
+                addMessage('Error: ' + data.error, 'bot');
+            } else {
+                addMessage(`Found ${data.total} emails in your inbox. Indexing them now...`, 'bot');
+                const r2 = await fetch(API_BASE + '/api/gmail/index', { method: 'POST' });
+                const idx = await r2.json();
+                addMessage(`Indexed ${idx.indexed} new emails (${idx.total_emails} total). You can now ask me about your emails!`, 'bot');
+                updateEmailCount();
+            }
+        } catch (e) {
+            addMessage('Error scanning inbox. Is the server running?', 'bot');
+        }
+        scanBtn.disabled = false;
+        scanBtn.textContent = 'Scan Inbox';
+    }
+
+    async function updateEmailCount() {
+        try {
+            const r = await fetch(API_BASE + '/api/gmail/emails');
+            const data = await r.json();
+            emailCount.textContent = `${data.total} emails indexed`;
+        } catch (e) {}
     }
 
     function addMessage(text, sender) {
@@ -100,40 +150,34 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function removeTyping() {
-        const typing = document.getElementById('typing-indicator');
-        if (typing) typing.remove();
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
     }
 
     async function sendMessage() {
         const text = userInput.value.trim();
         if (!text) return;
-
         addMessage(text, 'user');
         userInput.value = '';
         showTyping();
-
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{ role: 'user', content: text }]
-                })
+            const r = await fetch(API_BASE + '/api/chat', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: [{ role: 'user', content: text }] })
             });
-            const data = await response.json();
+            const data = await r.json();
             removeTyping();
             addMessage(data.reply || 'No response', 'bot');
-        } catch (error) {
+        } catch (e) {
             removeTyping();
-            addMessage('Error: Could not reach server. Is the backend running?', 'bot');
-            console.error('Chat error:', error);
+            addMessage('Error: Cannot reach server. Is it running?', 'bot');
         }
     }
 
     async function checkConnection() {
         try {
-            const response = await fetch('http://localhost:8000/health');
-            if (response.ok) {
+            const r = await fetch(API_BASE + '/health');
+            if (r.ok) {
                 statusEl.textContent = 'Connected';
                 statusEl.style.color = '#34a853';
             } else {
