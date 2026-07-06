@@ -53,12 +53,20 @@ body {
     display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
 }
 
+.gmail-status {
+    font-size: 11px; color: #666; padding: 4px 8px;
+    background: #f1f3f4; border-radius: 4px; white-space: nowrap;
+}
+.gmail-status.connected { color: #34a853; }
+.gmail-status.disconnected { color: #ea4335; }
+
 .gmail-btn {
     padding: 6px 12px; background: #1a73e8; color: #fff;
     border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
 }
 .gmail-btn:hover { background: #1557b0; }
 .gmail-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.gmail-btn.hidden { display: none; }
 
 .email-count { font-size: 11px; color: #666; margin-left: auto; }
 

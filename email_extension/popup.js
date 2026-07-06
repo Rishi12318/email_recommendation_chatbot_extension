@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const scanBtn = document.getElementById('scan-btn');
     const emailCount = document.getElementById('email-count');
     const openGmailBtn = document.getElementById('open-gmail-btn');
+    const gmailStatus = document.getElementById('gmail-status');
     const googleSignInBtn = document.getElementById('google-signin-btn');
     const userNameInput = document.getElementById('user-name');
     const userEmailInput = document.getElementById('user-email');
@@ -50,17 +51,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function signInWithGoogle() {
+        googleSignInBtn.disabled = true;
+        googleSignInBtn.textContent = 'Signing in...';
+
         chrome.identity.getProfileUserInfo({ 'accountStatus': 'ANY' }, function(userInfo) {
+            googleSignInBtn.disabled = false;
+            googleSignInBtn.textContent = 'Sign in with Google';
+
             if (chrome.runtime.lastError) {
-                addMessage('Could not sign in: ' + chrome.runtime.lastError.message, 'bot');
+                addMessage('Could not sign in: ' + chrome.runtime.lastError.message + '. Enter your details manually below.', 'bot');
                 return;
             }
-            if (userInfo.email) {
+            if (userInfo && userInfo.email) {
                 userNameInput.value = userInfo.name || userInfo.email.split('@')[0];
                 userEmailInput.value = userInfo.email;
-                addMessage('Signed in as ' + userInfo.email, 'bot');
+                addMessage('Signed in as ' + userInfo.email + '. Click "Get Started" to continue.', 'bot');
             } else {
-                addMessage('Please make sure you are signed into Chrome with your Google account.', 'bot');
+                addMessage('Not signed into Chrome with a Google account. Enter your details manually below.', 'bot');
             }
         });
     }
@@ -95,6 +102,20 @@ document.addEventListener('DOMContentLoaded', function() {
         chatArea.style.display = 'flex';
         userInput.focus();
         updateEmailCount();
+        checkGmailOpen();
+    }
+
+    function checkGmailOpen() {
+        chrome.tabs.query({ url: 'https://mail.google.com/*' }, function(tabs) {
+            const isOpen = tabs.length > 0;
+            gmailStatus.textContent = isOpen ? 'Gmail Open' : 'Gmail Closed';
+            gmailStatus.className = 'gmail-status ' + (isOpen ? 'connected' : 'disconnected');
+            if (isOpen) {
+                openGmailBtn.classList.add('hidden');
+            } else {
+                openGmailBtn.classList.remove('hidden');
+            }
+        });
     }
 
     function scanInbox() {
@@ -105,13 +126,17 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.runtime.sendMessage({ action: 'scanInbox' }, async (response) => {
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan Inbox';
-            if (!response || response.error) {
-                addMessage('Open Gmail first (mail.google.com) then try again.', 'bot');
+            if (!response) {
+                addMessage('Could not reach Gmail. Try refreshing mail.google.com and try again.', 'bot');
+                return;
+            }
+            if (response.error) {
+                addMessage(response.error + '. Open mail.google.com, refresh the page, then try again.', 'bot');
                 return;
             }
             const emails = response.emails || [];
             if (emails.length === 0) {
-                addMessage('No emails found. Make sure you are on the inbox page.', 'bot');
+                addMessage('No emails found. Make sure you are on the inbox page and try again.', 'bot');
                 return;
             }
             addMessage('Found ' + emails.length + ' emails. Indexing...', 'bot');
