@@ -46,6 +46,14 @@ class ScrapedEmail(BaseModel):
 class IngestRequest(BaseModel):
     emails: List[ScrapedEmail]
 
+class RecommendRequest(BaseModel):
+    email: str
+
+class RecommendResponse(BaseModel):
+    recommendation: str
+    category: str = "other"
+    similar_emails: int = 0
+
 class ChatResponse(BaseModel):
     reply: str
     recommendations: List[dict] = []
@@ -68,6 +76,55 @@ def get_rag() -> EmailRAG:
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/api/recommend", response_model=RecommendResponse)
+async def recommend(request: RecommendRequest):
+    if not request.email.strip():
+        raise HTTPException(status_code=400, detail="Email text is required")
+    try:
+        rag_instance = get_rag()
+        search_results = rag_instance.search(request.email, k=3)
+        if not search_results:
+            search_results = rag_instance.search_by_keyword(request.email, k=3)
+
+        from app.services.classifier import EmailClassifier
+        classifier = EmailClassifier()
+        category = classifier.predict(request.email[:1000])
+
+        from app.services.local_responder import generate_reply
+        reply = generate_reply(request.email, search_results)
+
+        if rag_instance.llm:
+            try:
+                from app.core.prompts import SYSTEM_PROMPT
+                context = "\n---\n".join(r["email"][:300] for r in search_results[:3])
+                prompt = (
+                    f"Write a short, professional reply to this email.\n\n"
+                    f"Email:\n{request.email[:1000]}\n\n"
+                    f"Similar past emails for context:\n{context}\n\n"
+                    f"Reply:"
+                )
+                response = rag_instance.llm.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                    max_tokens=200,
+                )
+                reply = response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"LLM reply generation failed, using template: {e}")
+
+        return RecommendResponse(
+            recommendation=reply,
+            category=category,
+            similar_emails=len(search_results),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Recommendation failed: {exc}")
 
 
 @app.post("/api/chat")

@@ -1,60 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Assistant</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Email Reply Assistant</title>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Email Assistant</h1>
-            <span class="status" id="status">Connected</span>
-        </div>
-
-        <div id="setup-section" class="settings-section visible">
-            <h3 style="margin-bottom:10px">Welcome!</h3>
-            <p style="font-size:12px;color:#666;margin-bottom:12px">Sign in with Google or enter details manually</p>
-            <button id="google-signin-btn" class="gmail-btn" style="width:100%;margin-bottom:12px;padding:10px">Sign in with Google</button>
-            <div style="border-top:1px solid #ddd;margin:8px 0;text-align:center;font-size:11px;color:#999;padding:4px">or</div>
-            <div class="settings-row">
-                <label for="user-name">Name</label>
-                <input type="text" id="user-name" placeholder="Your name">
-            </div>
-            <div class="settings-row">
-                <label for="user-email">Email</label>
-                <input type="email" id="user-email" placeholder="your@email.com">
-            </div>
-            <div class="settings-row">
-                <label for="user-profession">Profession</label>
-                <select id="user-profession">
-                    <option value="">-- Select --</option>
-                    <option value="student">Student</option>
-                    <option value="working">Working Professional</option>
-                </select>
-            </div>
-            <button id="save-settings-btn">Get Started</button>
-        </div>
-
-        <div id="chat-area">
-            <div class="gmail-bar">
-                <span id="gmail-status" class="gmail-status">Checking Gmail...</span>
-                <button id="open-gmail-btn" class="gmail-btn">Open Gmail</button>
-                <button id="scan-btn" class="gmail-btn scan-btn">Scan Inbox</button>
-                <span id="email-count" class="email-count"></span>
-            </div>
-            <div class="chat-box" id="chat-box"></div>
-            <div class="input-area">
-                <input type="text" id="user-input" class="user-input" placeholder="Ask about your emails..." autofocus>
-                <button id="send-btn" class="send-btn">Send</button>
-            </div>
-            <div class="actions">
-                <button class="action-btn" id="summarize-btn">Summarize</button>
-                <button class="action-btn" id="settings-btn">Settings</button>
-            </div>
-        </div>
+  <div class="container">
+    <div class="header">
+      <h1>AI Reply Assistant</h1>
+      <span class="badge" id="status">Ready</span>
     </div>
-    <script src="popup.js"></script>
+
+    <div class="section" id="config-section">
+      <label for="api-url">API URL</label>
+      <input type="text" id="api-url" placeholder="http://localhost:8000" value="http://localhost:8000">
+      <button id="save-config" class="btn btn-secondary">Save</button>
+    </div>
+
+    <div class="section" id="main-section">
+      <div class="email-preview" id="email-preview">
+        <p class="placeholder">Open an email in Gmail, then click "Extract Email" below.</p>
+      </div>
+
+      <div class="actions">
+        <button id="extract-btn" class="btn btn-primary">Extract Email</button>
+        <button id="recommend-btn" class="btn btn-success" disabled>Recommend Reply</button>
+      </div>
+
+      <div class="section" id="result-section" style="display:none">
+        <label>Recommended Reply</label>
+        <div class="reply-box" id="reply-box"></div>
+        <div class="meta" id="meta-info"></div>
+        <button id="copy-btn" class="btn btn-secondary">Copy to Clipboard</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Powered by DistilBERT + FAISS + RAG</span>
+    </div>
+  </div>
+  <script src="popup.js"></script>
 </body>
 </html>

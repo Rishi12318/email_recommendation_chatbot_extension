@@ -86,3 +86,43 @@ def generate_action_recommendation(email_text, category):
     action = CATEGORY_ACTIONS.get(category, "Review")
     label = CATEGORY_LABELS.get(category, "email")
     return f"[{action}] {label}: {email_text[:100]}..."
+
+
+REPLY_TEMPLATES = {
+    "greeting": "Hi, thank you for your email. I'll get back to you shortly.",
+    "meeting": "Thanks for reaching out. I'm available for a meeting. Please share a few time slots that work for you, and I'll confirm.",
+    "deadline": "Received, I'll make sure to complete this before the deadline.",
+    "interview": "Thank you for the interview invitation. I'm excited about this opportunity and will confirm my availability shortly.",
+    "question": "Thanks for your question. I'll look into this and get back to you with a detailed response.",
+    "approval": "Approved. Please proceed with the next steps.",
+    "follow_up": "Thanks for following up. I'm working on this and will share an update soon.",
+    "default": "Thank you for your email. I've reviewed your message and will respond in detail shortly.",
+}
+
+
+def generate_reply(email_text: str, similar_emails: list = None) -> str:
+    """Generate a reply recommendation based on the email content."""
+    lower = email_text.lower()
+
+    if any(w in lower for w in ["interview", "scheduled", "position", "hiring"]):
+        template = REPLY_TEMPLATES["interview"]
+    elif any(w in lower for w in ["meeting", "schedule", "calendar", "available"]):
+        template = REPLY_TEMPLATES["meeting"]
+    elif any(w in lower for w in ["deadline", "due", "submit", "complete by"]):
+        template = REPLY_TEMPLATES["deadline"]
+    elif any(w in lower for w in ["approve", "approval", "confirmed", "agreed"]):
+        template = REPLY_TEMPLATES["approval"]
+    elif any(w in lower for w in ["question", "how", "what", "when", "where", "could you"]):
+        template = REPLY_TEMPLATES["question"]
+    elif any(w in lower for w in ["follow up", "following up", "any update", "checking in"]):
+        template = REPLY_TEMPLATES["follow_up"]
+    elif any(w in lower for w in ["hello", "hi", "dear", "hey"]):
+        template = REPLY_TEMPLATES["greeting"]
+    else:
+        template = REPLY_TEMPLATES["default"]
+
+    if similar_emails:
+        context_snippet = similar_emails[0].get("email", "")[:150]
+        template += f"\n\n(Reference: similar past email — \"{context_snippet}...\")"
+
+    return template

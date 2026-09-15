@@ -108,3 +108,69 @@ def test_ingest_emails(client):
     data = response.json()
     assert "indexed" in data
     assert "total" in data
+
+
+def test_recommend_empty_email(client):
+    response = client.post("/api/recommend", json={"email": ""})
+    assert response.status_code == 400
+
+
+def test_recommend_meeting_email(client):
+    mock_rag_instance = client.app.__dict__.get("_mock_rag", MagicMock())
+    mock_rag_instance.search.return_value = [
+        {"email": "From: hr@company.com\nSubject: Meeting\n\nLet's schedule a meeting.", "score": 0.9}
+    ]
+    mock_rag_instance.search_by_keyword.return_value = []
+    mock_rag_instance.llm = None
+
+    with patch("app.main.get_rag", return_value=mock_rag_instance), \
+         patch("app.services.classifier.EmailClassifier") as mock_cls:
+        mock_cls.return_value.predict.return_value = "other"
+        response = client.post(
+            "/api/recommend",
+            json={"email": "Hi, can we schedule a meeting tomorrow?"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert "recommendation" in data
+    assert "category" in data
+    assert "similar_emails" in data
+    assert len(data["recommendation"]) > 0
+
+
+def test_recommend_interview_email(client):
+    mock_rag_instance = MagicMock()
+    mock_rag_instance.search.return_value = []
+    mock_rag_instance.search_by_keyword.return_value = []
+    mock_rag_instance.llm = None
+
+    with patch("app.main.get_rag", return_value=mock_rag_instance), \
+         patch("app.services.classifier.EmailClassifier") as mock_cls:
+        mock_cls.return_value.predict.return_value = "interview_call"
+        response = client.post(
+            "/api/recommend",
+            json={"email": "Congratulations! We would like to invite you to interview for the position."},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["category"] == "interview_call"
+    assert "interview" in data["recommendation"].lower()
+
+
+def test_recommend_generic_email(client):
+    mock_rag_instance = MagicMock()
+    mock_rag_instance.search.return_value = []
+    mock_rag_instance.search_by_keyword.return_value = []
+    mock_rag_instance.llm = None
+
+    with patch("app.main.get_rag", return_value=mock_rag_instance), \
+         patch("app.services.classifier.EmailClassifier") as mock_cls:
+        mock_cls.return_value.predict.return_value = "other"
+        response = client.post(
+            "/api/recommend",
+            json={"email": "Please review the attached document and let me know your thoughts."},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert "recommendation" in data
+    assert len(data["recommendation"]) > 0

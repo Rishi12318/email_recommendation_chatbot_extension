@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -32,3 +32,50 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t email-recommender:${{ github.sha }} .
+
+      - name: Test Docker container
+        run: |
+          docker run -d --name test-container -p 8000:8000 email-recommender:${{ github.sha }}
+          sleep 10
+          curl -f http://localhost:8000/health || (docker logs test-container && exit 1)
+          docker stop test-container
+
+  deploy-aws:
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to EC2
+        run: |
+          INSTANCE_ID=${{ secrets.EC2_INSTANCE_ID }}
+          aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID
+          aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "cd /home/ec2-user/email-recommendation",
+              "git pull origin main",
+              "docker compose up -d --build"
+            ]'
