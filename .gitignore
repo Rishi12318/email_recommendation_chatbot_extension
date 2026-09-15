@@ -5,12 +5,28 @@ build/
 dist/
 wheels/
 *.egg-info
+*.pyc
 
 # Virtual environments
 .venv
+.venv-1/
 
 # Secrets
 .env
+
+# Logs
+server.log
+server_err.log
 server_out.txt
 server_err.txt
+
+# Models (trained locally, downloaded during deployment)
 models/email_classifier/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

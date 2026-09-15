@@ -1,268 +1,193 @@
-Overview
-Email Recommendation System is an AI-powered email assistant that helps users manage their inbox. It uses a fine-tuned DistilBERT model to classify emails into categories, detects deadlines and expirations, and provides intelligent recommendations through a conversational interface.
+# Email Recommendation System
 
-The system consists of:
+AI-powered email assistant that helps users manage their inbox. It uses a fine-tuned DistilBERT model to classify emails, detects deadlines and expirations, and provides intelligent recommendations through a conversational interface.
 
-A FastAPI backend that serves the AI model and API endpoints
+## Features
 
-A Chrome extension that provides the user interface
+- **Email Classification** - Classifies emails into 7 categories: `deadline`, `interview_call`, `news`, `confirmation_email`, `otp`, `expired_email`, `other`
+- **Smart Recommendations** - Detects deadlines, expiration dates, and recommends actions (delete, archive, keep, remind)
+- **RAG Pipeline** - Semantic search over your emails using FAISS + Sentence Transformers
+- **Conversational AI** - Chat-based interaction via Groq LLM or local template responses
+- **Chrome Extension** - Gmail integration with Google OAuth and DOM scraping
 
-A RAG (Retrieval-Augmented Generation) pipeline for intelligent responses
+## Tech Stack
 
-Features
-Email Classification
-Classifies emails into 7 categories: deadline, interview_call, news, confirmation_email, otp, expired_email, other
+| Layer | Technologies |
+|-------|-------------|
+| Backend | FastAPI, Uvicorn, Pydantic |
+| ML/AI | PyTorch, DistilBERT, Sentence Transformers, FAISS |
+| LLM | Groq SDK (llama-3.1-8b-instant) |
+| Gmail API | google-api-python-client, google-auth-oauthlib |
+| Frontend | Chrome Extension (Manifest V3), vanilla JS |
+| Deployment | Render.com |
 
-Uses DistilBERT fine-tuned on a combination of real and synthetic email data
+## Project Structure
 
-Achieves 79% accuracy on validation set
-
-Smart Recommendations
-Detects deadlines and expiration dates
-
-Recommends actions: delete, archive, keep, remind
-
-Groups similar emails for bulk actions
-
-Conversation Interface
-Chat-based interaction through the browser extension
-
-Natural language queries like "Show me emails from Amazon"
-
-Context-aware responses using RAG pipeline
-
-User Profile Based Filtering
-Users specify if they are a student or working professional
-
-Work emails are identified based on sender domain (.edu for students, company domains for professionals)
-
-Reduces false positives in email categorization
-
-Tech Stack
-Backend
-FastAPI for API endpoints
-
-DistilBERT for email classification
-
-FAISS for vector search
-
-Groq LLM for natural language responses
-
-Sentence Transformers for text embeddings
-
-Frontend
-Chrome Extension (HTML, CSS, JavaScript)
-
-Chrome Storage API for user settings
-
-Training
-Hugging Face Transformers
-
-PyTorch
-
-Scikit-learn
-
-Project Structure
-text
+```
 email-recommendation/
 ├── app/
-│   ├── main.py                    # FastAPI server
+│   ├── main.py                    # FastAPI application entry point
 │   ├── core/
-│   │   ├── config.py              # Configuration settings
-│   │   └── prompts.py             # LLM prompts
+│   │   └── prompts.py             # LLM system prompt and RAG prompt template
 │   ├── services/
-│   │   ├── classifier.py          # Email classifier
-│   │   ├── rag.py                 # RAG pipeline
-│   │   └── llm_client.py          # Groq client
-│   └── models/
-│       └── email_classifier/      # Trained model
+│   │   ├── classifier.py          # DistilBERT email classifier wrapper
+│   │   ├── rag.py                 # FAISS semantic search + Groq LLM
+│   │   ├── agent_rag.py           # Orchestrates classifier + RAG
+│   │   ├── gmail_auth.py          # Google OAuth2 flow
+│   │   ├── gmail_service.py       # Gmail API email fetching
+│   │   ├── local_responder.py     # Template-based responses (no LLM needed)
+│   │   ├── build_rag_index.py     # Builds FAISS index from cleaned CSVs
+│   │   └── build_pipeline.py      # End-to-end: data → preprocess → index
+│   ├── data/
+│   │   ├── data.py                # Training data generation
+│   │   └── preprocesses.py        # Text cleaning for RAG indexing
+│   ├── train/
+│   │   └── train_model.py         # DistilBERT fine-tuning script
+│   └── evaluation/
+│       └── evaluation.py          # Model evaluation script
+├── models/
+│   ├── email_index.faiss          # FAISS vector index
+│   ├── emails.json                # Email texts for RAG lookup
+│   ├── index_meta.json            # Index metadata
+│   └── email_classifier/         # Fine-tuned DistilBERT model
 ├── data/
 │   ├── train.csv                  # Training data
-│   └── val.csv                    # Validation data
-├── email-extension/               # Chrome extension
+│   ├── val.csv                    # Validation data
+│   ├── train_cleaned.csv          # Cleaned for RAG
+│   └── test_cleaned.csv           # Cleaned for RAG
+├── email_extension/               # Chrome Extension
 │   ├── manifest.json
-│   ├── popup.html
+│   ├── popup.html / popup.js
 │   ├── style.css
-│   ├── popup.js
 │   ├── content.js
-│   └── background.js
+│   ├── background.js
+│   └── gmail-api.js
+├── scripts/
+│   ├── setup_model.py             # Downloads base DistilBERT for deployment
+│   └── colab_train.py             # Google Colab training script
+├── tests/
+│   ├── test_api.py                # API endpoint tests
+│   └── test_services.py           # Service unit tests
 ├── requirements.txt
-├── .env.example
-└── README.md
-Installation
-Prerequisites
-Python 3.11 or higher
+├── pyproject.toml
+├── render.yaml
+└── .env
+```
 
-Node.js (for Chrome extension development, optional)
+## Installation
 
-Chrome browser (for testing the extension)
+### Prerequisites
 
-Step 1: Clone the Repository
-text
+- Python 3.11 or higher
+- Chrome browser (for the extension)
+
+### Step 1: Clone and set up
+
+```bash
 git clone https://github.com/yourusername/email-recommendation.git
 cd email-recommendation
-Step 2: Create Virtual Environment
-text
 python -m venv .venv
-.venv\Scripts\activate
-Step 3: Install Dependencies
-text
-pip install -r requirements.txt
-Step 4: Set Up Environment Variables
-Copy .env.example to .env and fill in your API keys:
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # macOS/Linux
+```
 
-text
-cp .env.example .env
-Edit .env file:
+### Step 2: Install dependencies
 
-text
-GROQ_API_KEY=your_groq_api_key
-HF_TOKEN=your_huggingface_token
-Step 5: Prepare Training Data
-text
-python data/prepare_data.py
-Step 6: Train the Model (Optional - Model is already trained)
-text
-python train.py
-Step 7: Run the Server
-text
+```bash
+pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+```
+
+### Step 3: Set up environment variables
+
+Create a `.env` file:
+
+```
+GROQ_API_KEY=your_groq_api_key      # Optional - uses local templates if not set
+HF_TOKEN=your_huggingface_token      # Optional - for model downloads
+GOOGLE_CLIENT_ID=your_client_id      # Optional - for Gmail OAuth
+```
+
+### Step 4: Run the server
+
+```bash
 python -m uvicorn app.main:app --reload
+```
+
 The API will be available at: http://localhost:8000
 
-Chrome Extension Installation
-Step 1: Open Chrome Extensions Page
-Open Chrome browser
+## Chrome Extension Installation
 
-Navigate to chrome://extensions/
+1. Open `chrome://extensions/` and enable **Developer mode**
+2. Click **Load unpacked** and select the `email_extension/` folder
+3. Click the extension icon, enter your details, and click **Connect Gmail**
 
-Enable Developer mode (toggle in top right)
+## API Endpoints
 
-Step 2: Load the Extension
-Click "Load unpacked"
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/api/chat` | Chat with the email assistant |
+| `POST` | `/api/emails/ingest` | Ingest scraped emails into the index |
+| `GET` | `/api/gmail/auth` | Start Gmail OAuth flow |
+| `GET` | `/api/gmail/callback` | Gmail OAuth callback |
+| `GET` | `/api/gmail/status` | Check Gmail connection status |
+| `POST` | `/api/gmail/scan` | Fetch recent emails from Gmail |
+| `POST` | `/api/gmail/index` | Index Gmail emails into FAISS |
+| `GET` | `/api/gmail/emails` | List indexed emails |
 
-Select the email-extension folder from the project
+### Example: Chat
 
-Step 3: Configure the Extension
-Click the extension icon in the toolbar
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Show me emails from Amazon"}]}'
+```
 
-Enter your name and email
+## Running Tests
 
-Select your profession (Student or Working Professional)
+```bash
+pytest tests/ -v
+```
 
-Click "Save Settings"
+## Model Performance
 
-Click "Connect Gmail" to authorize email access
+| Metric | Score |
+|--------|-------|
+| Accuracy | 79.12% |
+| F1 Weighted | 82.66% |
+| ROC-AUC | 94.78% |
+| Top-2 Accuracy | 85.60% |
 
-API Endpoints
-Health Check
-text
-GET /health
-Response: {"status": "ok"}
-Chat
-text
-POST /api/chat
-Headers:
-  X-Groq-Key: your_groq_api_key
-Body:
-  {
-    "messages": [{"role": "user", "content": "Show me emails from Amazon"}]
-  }
-Response:
-  {
-    "reply": "Found 5 emails from Amazon...",
-    "recommendations": [],
-    "end_of_conversation": false
-  }
-User Profile
-text
-POST /api/user/profile
-Body:
-  {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "profession": "student"
-  }
-Response:
-  {"message": "Profile saved successfully"}
-Usage Examples
-Search Emails
-User: "Show me emails from Amazon"
-Agent: "Found 5 emails from Amazon. 2 are order confirmations, 3 are promotional."
+### Per-Class F1
 
-Delete Expired Emails
-User: "Delete all expired emails"
-Agent: "Found 12 expired emails. Delete them? (Yes/No)"
+| Category | F1 Score |
+|----------|----------|
+| deadline | 1.000 |
+| interview_call | 1.000 |
+| otp | 0.991 |
+| news | 0.961 |
+| other | 0.744 |
+| expired_email | 0.294 |
+| confirmation_email | 0.139 |
 
-Set Reminder
-User: "Remind me about the assessment deadline"
-Agent: "I will remind you 2 days before the deadline."
+## Evaluation
 
-Get Summary
-User: "Summarize my recent emails"
-Agent: "You have 8 emails from work, 3 from services, and 2 from educational institutions."
+```bash
+python -m app.evaluation.evaluation
+```
 
-Model Performance
-Metric	Score
-Accuracy	79.12%
-F1 Weighted	82.66%
-ROC-AUC	94.78%
-Top-2 Accuracy	85.60%
-Per-Class Performance
-Category	Precision	Recall	F1
-deadline	1.000	1.000	1.000
-interview_call	1.000	1.000	1.000
-news	0.999	0.927	0.961
-otp	0.988	0.995	0.991
-other	0.998	0.592	0.744
-expired_email	0.172	1.000	0.294
-confirmation_email	1.000	0.074	0.139
-Evaluation
-Run evaluation on the validation set:
+Generates a classification report, confusion matrix, and per-class metrics charts in `evaluation/plots/`.
 
-text
-python evaluation/evaluate.py
-Output:
+## Deployment (Render)
 
-Classification report
+The project includes a `render.yaml` for one-click deployment. The build process:
+1. Installs CPU-only PyTorch and dependencies
+2. Downloads a base DistilBERT model via `scripts/setup_model.py`
+3. Starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
-Confusion matrix plot (saved to evaluation/plots/)
+## Troubleshooting
 
-Per-class metrics chart (saved to evaluation/plots/)
-
-Metrics CSV (saved to evaluation/plots/)
-
-Troubleshooting
-Server Won't Start
-Check if port 8000 is in use: netstat -ano | findstr :8000
-
-Make sure all dependencies are installed
-
-Verify .env file has correct API keys
-
-Model Not Found
-Run training first: python train.py
-
-Or download pre-trained model
-
-Extension Not Working
-Reload the extension in chrome://extensions/
-
-Check console for errors (F12)
-
-Verify Gmail is connected
-
-Gmail OAuth Issues
-Ensure you have created OAuth credentials in Google Cloud Console
-
-Add authorized redirect URI: http://localhost:8000/api/gmail/callback
-
-Contributing
-Fork the repository
-
-Create a feature branch
-
-Commit your changes
-
-Push to the branch
-
-Open a pull request
+- **Server won't start**: Check port 8000 isn't in use, verify `.env` has valid keys
+- **Model not found**: The server auto-downloads a base model on first start; for accurate predictions, train with `python app/train/train_model.py`
+- **Extension not working**: Reload in `chrome://extensions/`, check console (F12)
+- **Gmail OAuth issues**: Ensure redirect URI `http://localhost:8000/api/gmail/callback` is configured in Google Cloud Console

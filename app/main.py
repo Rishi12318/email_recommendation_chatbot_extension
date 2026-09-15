@@ -116,7 +116,22 @@ async def gmail_scan():
     result = fetch_recent_emails(max_results=50)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    emails = result.get("emails", [])
+    return {
+        "total": result.get("total", 0),
+        "emails": [
+            {
+                "id": e["id"],
+                "sender": e.get("sender_name", e.get("from", "Unknown")),
+                "sender_email": e.get("sender_email", ""),
+                "subject": e.get("subject", "(no subject)"),
+                "date": e.get("date_display", e.get("date", "")),
+                "date_iso": e.get("date_iso", ""),
+                "snippet": e.get("snippet", ""),
+            }
+            for e in emails
+        ],
+    }
 
 
 @app.post("/api/gmail/index")
@@ -130,7 +145,7 @@ async def gmail_index():
     rag = get_rag()
     new_count = 0
     for email in emails:
-        text = f"From: {email['from']}\nSubject: {email['subject']}\nDate: {email['date']}\n\n{email['body']}"
+        text = f"From: {email.get('sender_name', email['from'])} <{email.get('sender_email', '')}>\nSubject: {email['subject']}\nDate: {email.get('date_display', email['date'])}\n\n{email['body']}"
         if text not in rag.emails:
             rag.emails.append(text)
             new_count += 1
@@ -140,8 +155,7 @@ async def gmail_index():
     from sentence_transformers import SentenceTransformer
     embedder = SentenceTransformer("all-MiniLM-L6-v2")
     if new_count > 0:
-        new_texts = [e for e in emails]
-        new_vecs = embedder.encode([f"From: {e['from']}\nSubject: {e['subject']}\nDate: {e['date']}\n\n{e['body']}" for e in emails], convert_to_numpy=True)
+        new_vecs = embedder.encode([f"From: {e.get('sender_name', e['from'])} <{e.get('sender_email', '')}>\nSubject: {e['subject']}\nDate: {e.get('date_display', e['date'])}\n\n{e['body']}" for e in emails], convert_to_numpy=True)
         norms = np.linalg.norm(new_vecs, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1.0, norms)
         new_vecs = (new_vecs / norms).astype("float32")

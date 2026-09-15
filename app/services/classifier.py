@@ -9,7 +9,7 @@ class EmailClassifier:
                           'confirmation_email', 'otp', 'expired_email', 'other']
         
         if not os.path.exists(model_path):
-            print(f"⚠️ Model not found at {model_path}")
+            print(f"[WARN] Model not found at {model_path}")
             print("Using dummy classifier")
             self.tokenizer = None
             self.model = None
@@ -21,9 +21,9 @@ class EmailClassifier:
             self.model = DistilBertForSequenceClassification.from_pretrained(model_path)
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model.to(self.device)
-            print(f"✅ Classifier loaded from {model_path}")
+            print(f"[OK] Classifier loaded from {model_path}")
         except Exception as e:
-            print(f"⚠️ Error loading model: {e}")
+            print(f"[WARN] Error loading model: {e}")
             self.tokenizer = None
             self.model = None
             self.device = "cpu"

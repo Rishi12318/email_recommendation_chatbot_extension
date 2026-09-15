@@ -12,8 +12,17 @@
     ],
     "host_permissions": [
         "https://mail.google.com/*",
+        "https://www.googleapis.com/*",
         "http://localhost:8000/*"
     ],
+    "oauth2": {
+        "client_id": "389383937791-0hpe0jr437k0fpnt5im1hh3rho7v80hs.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ]
+    },
     "action": {
         "default_popup": "popup.html",
         "default_title": "Email Assistant"

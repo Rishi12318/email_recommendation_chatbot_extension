@@ -26,7 +26,7 @@ class EmailRAG:
 
         # ── Load FAISS index ───────────────────────────────────────────────
         if not os.path.exists(index_path):
-            print(f"⚠️  FAISS index not found at {index_path}")
+            print(f"[WARN] FAISS index not found at {index_path}")
             print("    Run: python app/services/build_rag_index.py")
             self.index  = None
             self.emails = []
@@ -55,7 +55,7 @@ class EmailRAG:
                     "Scores will be distances - lower means more similar."
                 )
 
-            print(f"✅ Loaded {len(self.emails)} emails into RAG")
+            print(f"[OK] Loaded {len(self.emails)} emails into RAG")
 
         # ── Groq LLM client ───────────────────────────────────────────────
         groq_key = os.getenv("GROQ_API_KEY")
@@ -162,7 +162,7 @@ class EmailRAG:
         results = self.search(query, k)
 
         if not results:
-            print(f"ℹ️  Semantic search returned nothing for '{query}', trying keyword fallback")
+            print(f"[INFO] Semantic search returned nothing for '{query}', trying keyword fallback")
             results = self.search_by_keyword(query, k)
 
         context = "\n---\n".join(r["email"][:300] for r in results)

@@ -58,19 +58,40 @@ document.addEventListener('DOMContentLoaded', function() {
         googleSignInBtn.disabled = true;
         googleSignInBtn.textContent = 'Signing in...';
 
-        chrome.identity.getProfileUserInfo({ 'accountStatus': 'ANY' }, function(userInfo) {
-            googleSignInBtn.disabled = false;
-            googleSignInBtn.textContent = 'Sign in with Google';
-
+        chrome.identity.getAuthToken({ interactive: true }, function(token) {
             if (chrome.runtime.lastError) {
+                googleSignInBtn.disabled = false;
+                googleSignInBtn.textContent = 'Sign in with Google';
                 addMessage('Could not sign in: ' + chrome.runtime.lastError.message + '. Enter your details manually below.', 'bot');
                 return;
             }
-            if (userInfo && userInfo.email) {
-                userNameInput.value = userInfo.name || userInfo.email.split('@')[0];
-                userEmailInput.value = userInfo.email;
-                addMessage('Signed in as ' + userInfo.email + '. Click "Get Started" to continue.', 'bot');
+
+            if (token) {
+                fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                })
+                .then(r => r.json())
+                .then(userInfo => {
+                    googleSignInBtn.disabled = false;
+                    googleSignInBtn.textContent = 'Sign in with Google';
+
+                    if (userInfo.email) {
+                        userNameInput.value = userInfo.name || userInfo.email.split('@')[0];
+                        userEmailInput.value = userInfo.email;
+                        chrome.storage.local.set({ gmailToken: token });
+                        addMessage('Signed in as ' + userInfo.email + '. Click "Get Started" to continue.', 'bot');
+                    } else {
+                        addMessage('Could not get user info. Enter your details manually below.', 'bot');
+                    }
+                })
+                .catch(() => {
+                    googleSignInBtn.disabled = false;
+                    googleSignInBtn.textContent = 'Sign in with Google';
+                    addMessage('Error getting user info. Enter your details manually below.', 'bot');
+                });
             } else {
+                googleSignInBtn.disabled = false;
+                googleSignInBtn.textContent = 'Sign in with Google';
                 addMessage('Not signed into Chrome with a Google account. Enter your details manually below.', 'bot');
             }
         });
@@ -106,48 +127,48 @@ document.addEventListener('DOMContentLoaded', function() {
         chatArea.style.display = 'flex';
         userInput.focus();
         updateEmailCount();
-        checkGmailOpen();
-    }
-
-    function checkGmailOpen() {
-        chrome.tabs.query({ url: 'https://mail.google.com/*' }, function(tabs) {
-            const isOpen = tabs.length > 0;
-            gmailStatus.textContent = isOpen ? 'Gmail Open' : 'Gmail Closed';
-            gmailStatus.className = 'gmail-status ' + (isOpen ? 'connected' : 'disconnected');
-            if (isOpen) {
-                openGmailBtn.classList.add('hidden');
-            } else {
-                openGmailBtn.classList.remove('hidden');
-            }
-        });
     }
 
     function scanInbox() {
         scanBtn.disabled = true;
         scanBtn.textContent = 'Scanning...';
-        addMessage('Scanning Gmail...', 'bot');
+        addMessage('Connecting to Gmail API...', 'bot');
 
-        chrome.runtime.sendMessage({ action: 'scanInbox' }, async (response) => {
+        chrome.runtime.sendMessage({ action: 'scanInbox', maxResults: 50 }, async (response) => {
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan Inbox';
+
             if (!response) {
-                addMessage('Could not reach Gmail. Try refreshing mail.google.com and try again.', 'bot');
+                addMessage('Could not connect to Gmail. Please try again.', 'bot');
                 return;
             }
+
             if (response.error) {
-                addMessage(response.error + '. Open mail.google.com, refresh the page, then try again.', 'bot');
+                addMessage('Error: ' + response.error, 'bot');
                 return;
             }
+
             const emails = response.emails || [];
             if (emails.length === 0) {
-                addMessage('No emails found. Make sure you are on the inbox page and try again.', 'bot');
+                addMessage('No emails found in your inbox.', 'bot');
                 return;
             }
+
             addMessage('Found ' + emails.length + ' emails. Indexing...', 'bot');
+
+            const formattedEmails = emails.map(e => ({
+                sender: e.sender_name || e.from || 'Unknown',
+                subject: e.subject || '(no subject)',
+                snippet: e.snippet || '',
+                date: e.date_display || e.date || '',
+                body: e.body || ''
+            }));
+
             try {
                 const r = await fetch(API_BASE + '/api/emails/ingest', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ emails })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails: formattedEmails })
                 });
                 const data = await r.json();
                 addMessage('Indexed ' + data.indexed + ' emails. Ask me anything!', 'bot');
