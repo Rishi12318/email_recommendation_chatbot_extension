@@ -1,0 +1,65 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Cost protection - AWS Budgets alert for Free Tier usage",
+
+  "Resources": {
+    "FreeTierBudget": {
+      "Type": "AWS::Budgets::Budget",
+      "Properties": {
+        "Budget": {
+          "BudgetName": "FreeTier-Monthly-Alert",
+          "BudgetLimit": {
+            "Amount": "10",
+            "Unit": "USD"
+          },
+          "BudgetType": "COST",
+          "TimeUnit": "MONTHLY",
+          "CostFilters": {
+            "LinkedAccount": [{"Ref": "AWS::AccountId"}]
+          }
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "NotificationType": "ACTUAL",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 80,
+              "ThresholdType": "PERCENTAGE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "EMAIL",
+                "Address": "rishi@example.com"
+              }
+            ]
+          },
+          {
+            "Notification": {
+              "NotificationType": "FORECASTED",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 100,
+              "ThresholdType": "PERCENTAGE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "EMAIL",
+                "Address": "rishi@example.com"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "BudgetName": {
+      "Value": "FreeTier-Monthly-Alert",
+      "Description": "Budget name"
+    },
+    "AlertThreshold": {
+      "Value": "80% of $10/month",
+      "Description": "You get emailed when costs exceed 80%"
+    }
+  }
+}
