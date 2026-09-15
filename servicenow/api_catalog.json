@@ -1,0 +1,75 @@
+{
+  "name": "email-assistant",
+  "description": "AI-powered email assistant with RAG, classification, and Gmail integration",
+  "short_description": "Email management AI assistant",
+  "version": "1.0.0",
+  "api": {
+    "base_url": "/api",
+    "endpoints": {
+      "health": {
+        "method": "GET",
+        "path": "/health",
+        "description": "Health check endpoint"
+      },
+      "chat": {
+        "method": "POST",
+        "path": "/api/chat",
+        "description": "Chat with the email assistant",
+        "schema": {
+          "request": {
+            "messages": [{"role": "string", "content": "string"}]
+          },
+          "response": {
+            "reply": "string",
+            "recommendations": "array",
+            "end_of_conversation": "boolean"
+          }
+        }
+      },
+      "emails_ingest": {
+        "method": "POST",
+        "path": "/api/emails/ingest",
+        "description": "Ingest scraped emails into the RAG index"
+      },
+      "gmail_auth": {
+        "method": "GET",
+        "path": "/api/gmail/auth",
+        "description": "Start Gmail OAuth2 flow"
+      },
+      "gmail_callback": {
+        "method": "GET",
+        "path": "/api/gmail/callback",
+        "description": "Gmail OAuth2 callback handler"
+      },
+      "gmail_status": {
+        "method": "GET",
+        "path": "/api/gmail/status",
+        "description": "Check Gmail connection status"
+      },
+      "gmail_scan": {
+        "method": "POST",
+        "path": "/api/gmail/scan",
+        "description": "Fetch recent emails from Gmail"
+      },
+      "gmail_index": {
+        "method": "POST",
+        "path": "/api/gmail/index",
+        "description": "Index Gmail emails into FAISS vector store"
+      },
+      "gmail_emails": {
+        "method": "GET",
+        "path": "/api/gmail/emails",
+        "description": "List all indexed emails"
+      }
+    }
+  },
+  "auth": {
+    "type": "oauth2",
+    "provider": "google",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify"
+    ],
+    "client_id_env": "GOOGLE_CLIENT_ID"
+  }
+}

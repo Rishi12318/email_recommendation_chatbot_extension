@@ -1,0 +1,57 @@
+{
+  "slack": {
+    "app_name": "Email Assistant Bot",
+    "app_description": "AI-powered email management assistant",
+    "features": {
+      "slash_commands": [
+        {
+          "command": "/email-search",
+          "description": "Search emails by keyword or sender",
+          "usage_hint": "/email-search Amazon order"
+        },
+        {
+          "command": "/email-summary",
+          "description": "Get a summary of recent emails",
+          "usage_hint": "/email-summary"
+        },
+        {
+          "command": "/email-classify",
+          "description": "Classify an email by pasting its content",
+          "usage_hint": "/email-classify Your email content here"
+        }
+      ],
+      "events": [
+        "message.channels",
+        "message.im"
+      ],
+      "interactive_messages": true
+    },
+    "oauth_config": {
+      "scopes": {
+        "bot": [
+          "chat:write",
+          "commands",
+          "incoming-webhook"
+        ]
+      }
+    },
+    "outgoing_webhooks": {
+      "deploy_notification": {
+        "url": "SLACK_WEBHOOK_URL",
+        "events": ["deploy.success", "deploy.failure"],
+        "message_template": {
+          "success": ":white_check_mark: *Email Assistant* deployed successfully to Render",
+          "failure": ":x: *Email Assistant* deployment failed. Check Jenkins logs."
+        }
+      },
+      "build_notification": {
+        "url": "SLACK_WEBHOOK_URL",
+        "events": ["build.success", "build.failure"],
+        "message_template": {
+          "success": ":white_check_mark: Build #{{build_number}} passed",
+          "failure": ":x: Build #{{build_number}} failed"
+        }
+      }
+    }
+  }
+}
