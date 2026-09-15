@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-recommender
+  labels:
+    app: email-recommender
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: email-recommender
+  template:
+    metadata:
+      labels:
+        app: email-recommender
+    spec:
+      containers:
+        - name: email-recommender
+          image: YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/email-recommendation:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: groq-api-key
+                  optional: true
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: hf-token
+                  optional: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5

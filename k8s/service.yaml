@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-recommender-service
+  labels:
+    app: email-recommender
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  selector:
+    app: email-recommender
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
